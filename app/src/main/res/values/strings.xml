@@ -44,4 +44,21 @@
     <!-- TODO: Remove or change this placeholder text -->
     <string name="not_data">暂无数据</string>
     <string name="title_activity_todo_list">TodoListActivity</string>
+
+
+    <string name="welcomeTitle">欢迎使用xxx个人记账APP!</string>
+    <string name="account">用户</string>
+    <string name="hint1">请输入手机号</string>
+    <string name="hint2">请输入密码</string>
+    <string name="forgetPassword">忘记密码？</string>
+    <string name="login">立即登录</string>
+    <string name="register">立即注册</string>
+    <string name="rememberPassword">记住密码</string>
+    <string name="title_register">欢迎注册</string>
+    <string name="send">发送验证码</string>
+    <string name="hint3">验证码</string>
+    <string name="hint4">请再次输入密码</string>
+    <string name="tip">已有账号，</string>
+    <string name="tip2">注册即代表您已阅读并同意</string>
+    <string name="protocol">使用协议</string>
 </resources>
