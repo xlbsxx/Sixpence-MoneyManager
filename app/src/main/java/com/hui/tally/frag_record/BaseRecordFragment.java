@@ -26,6 +26,7 @@ import androidx.fragment.app.Fragment;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -38,23 +39,33 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.android.application.R;
-import com.hui.tally.RecordActivity;
 import com.hui.tally.db.AccountBean;
-import com.hui.tally.db.DBManager;
 import com.hui.tally.db.TypeBean;
 import com.hui.tally.utils.BeiZhuDialog;
 import com.hui.tally.utils.KeyBoardUtils;
 import com.hui.tally.utils.SelectTimeDialog;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
+import android.util.Base64;
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
 /**
  * 记录页面当中的支出模块
  */
@@ -80,6 +91,129 @@ public abstract class BaseRecordFragment extends Fragment implements View.OnClic
         accountBean.setTypename("其他");
         accountBean.setsImageId(R.mipmap.ic_qita_fs);
     }
+    private static final String SERVER_URL = "http://192.168.1.3:8081";
+    private void sendImageToServer(String encodedImage) {
+        try {
+            URL url = new URL(SERVER_URL);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json");
+
+            // 创建JSON对象，将Base64数据放入其中
+            JSONObject jsonParams = new JSONObject();
+            jsonParams.put("image", encodedImage);
+
+            //String requestBody = "test";
+            // 将JSON数据写入输出流
+            OutputStream os = conn.getOutputStream();
+            os.write(jsonParams.toString().getBytes("UTF-8"));
+            os.close();
+            int responseCode = conn.getResponseCode();
+
+            // 处理服务器响应
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                // 请求成功
+                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder response = new StringBuilder();
+                String inputLine;
+
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                in.close();
+
+                String serverResponse = response.toString();
+
+                // 打印服务器响应或进一步处理
+                Log.d("Server", serverResponse);
+
+                // 处理服务器响应，可以将其解析为JSON或其他格式
+                //handleServerResponse(serverResponse);
+            } else {
+                // 请求失败
+                // 这里可以处理失败情况
+                Log.e("INFO", "服务器请求失败" );
+            }
+            Log.d("INFO", "没有问题");
+        } catch (Exception e) {
+            Log.e("INFO",Log.getStackTraceString(e));
+            Log.d("INFO", "出现了问题 ");
+        }
+    }
+    private void handleServerResponse(String response) {
+        try {
+            // 将服务器响应字符串解析为JSON对象
+            JSONObject jsonResponse = new JSONObject(response);
+
+            // 从JSON对象中获取相应字段的值
+            String name = jsonResponse.getString("name");
+            double money = jsonResponse.getDouble("money");
+            String time = jsonResponse.getString("time");
+
+            // 打印这些字段的值
+            Log.d("Server", "Name: " + name);
+            Log.d("Server", "Money: " + money);
+            Log.d("Server", "Time: " + time);
+
+            // 如果需要在UI中显示这些值，可以在这里更新UI元素
+            getActivity().runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    // 在这里更新UI，例如将这些值显示在TextView上
+                    // textViewName.setText("Name: " + name);
+                    // textViewMoney.setText("Money: " + money);
+                    // textViewTime.setText("Time: " + time);
+                }
+            });
+        } catch (JSONException e) {
+            e.printStackTrace();
+            // JSON解析错误，处理错误情况
+        }
+    }
+
+    /*public static void uploadImage(String imagePath) {
+        File imageFile = new File(imagePath);
+        String base64Image = imageToBase64(imagePath);
+
+        OkHttpClient client = new OkHttpClient();
+
+        MediaType mediaType = MediaType.parse("application/json");
+        String requestBodyString = "{\"image\": \"" + base64Image + "\"}";
+        RequestBody requestBody = RequestBody.create(mediaType, requestBodyString);
+
+        Request request = new Request.Builder()
+                .url(SERVER_URL)
+                .post(requestBody)
+                .build();
+
+        try {
+            Response response = client.newCall(request).execute();
+            String TAG="responseBody";
+            // 处理服务器响应
+            if (response.isSuccessful()) {
+                ResponseBody responseBody = response.body();
+                if (responseBody != null) {
+                    String responseData = responseBody.string();
+
+                    Log.e(TAG, responseData,null );
+                }
+            } else {
+                // Handle error response
+                Log.e(TAG, "找不到",null );
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }*/
+
+        public static String imageToBase64(String imagePath) {
+            Bitmap bitmap = BitmapFactory.decodeFile(imagePath);
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream);
+            byte[] byteArray = byteArrayOutputStream.toByteArray();
+            return Base64.encodeToString(byteArray, Base64.DEFAULT);
+        }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -229,29 +363,32 @@ public abstract class BaseRecordFragment extends Fragment implements View.OnClic
     //Overriding method should call super.onActivityResult
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data){
-        switch (requestCode){
-            case TAKE_PHOTO:
-                if (resultCode == RESULT_OK){
-                    try {
-                        //将拍摄的照片显示出来
-                        Bitmap bitmap = BitmapFactory.decodeStream(getContext().getContentResolver().openInputStream(imageUri));
-                        picture.setImageBitmap(bitmap);
-                    }catch (FileNotFoundException e){
-                        e.printStackTrace();
+        if(data==null){
+            return;
+        }else {
+            switch (requestCode){
+                case TAKE_PHOTO:
+                    if (resultCode == RESULT_OK){
+                        try {
+                            //将拍摄的照片显示出来
+                            Bitmap bitmap = BitmapFactory.decodeStream(getContext().getContentResolver().openInputStream(imageUri));
+                            picture.setImageBitmap(bitmap);
+                        }catch (FileNotFoundException e){
+                            e.printStackTrace();
+                        }
                     }
-                }
-                break;
-            case CHOOSE_PHOTO:
-                if (resultCode == RESULT_OK){
-                    //判断手机系统版本号
-                    if (Build.VERSION.SDK_INT >= 19){
-                        //4.4及以上系统使用这个方法处理图片
-                        handleImageOnKitKat(data);
-                    }else{
-                        handleImageBeforeKitKat(data);
+                    break;
+                case CHOOSE_PHOTO:
+                    if (resultCode == RESULT_OK){
+                        //判断手机系统版本号
+                        if (Build.VERSION.SDK_INT >= 19){
+                            //4.4及以上系统使用这个方法处理图片
+                            handleImageOnKitKat(data);
+                        }else{
+                            handleImageBeforeKitKat(data);
+                        }
                     }
-                }
-
+            }
         }
     }
 
@@ -278,12 +415,30 @@ public abstract class BaseRecordFragment extends Fragment implements View.OnClic
             imagePath = uri.getPath();
         }
         displayImage(imagePath); //根据图片路径显示图片
+        String finalImagePath = imagePath;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                // 在这里执行您的耗时操作
+                String encodedImage = imageToBase64(finalImagePath); // 替换yourBitmap为您的图像
+                sendImageToServer(encodedImage);
+            }
+        }).start();
     }
 
     private void handleImageBeforeKitKat(Intent data){
         Uri uri = data.getData();
         String imagePath = getImagePath(uri,null);
         displayImage(imagePath);
+        // 创建并启动新线程
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                // 在这里执行您的耗时操作
+                String encodedImage = imageToBase64(imagePath); // 替换yourBitmap为您的图像
+                sendImageToServer(encodedImage);
+            }
+        }).start();
     }
 
     @SuppressLint("Range")
